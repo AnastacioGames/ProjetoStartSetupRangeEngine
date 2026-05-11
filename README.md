@@ -1,0 +1,33 @@
+# 🚀 Start Setup - Range Engine
+
+Um template base robusto para acelerar o desenvolvimento de jogos utilizando a **Range Engine**. Este projeto fornece uma arquitetura segura e sistemas essenciais pré-configurados para que você possa focar direto na criação do seu jogo, sem precisar reinventar a roda.
+
+## ✨ Recursos Inclusos
+
+* 🧠 **BrainCore (Scene Manager):** Sistema central de gerenciamento de fluxo do jogo. Protege a arquitetura da cena base (System) e gerencia transições seguras de fases com **telas de loading** e **sistema de pause**.
+* 💾 **Save Manager:** Sistema completo de Save/Load em `JSON`. Ele escaneia as fases, salva a posição, rotação e propriedades (props) dos objetos na memória. Também é capaz de re-spawnar instâncias dinâmicas e limpar objetos destruídos de forma inteligente.
+* 🎵 **Music Manager:** Gerenciador de trilhas sonoras focado em polimento. Controla automaticamente transições suaves de volume (*Fade In/Fade Out*) e gerencia sua playlist através de apelidos (aliases), integrando-se facilmente com o sistema de volume global do jogo.
+
+## 📜 Regras de Funcionamento (Como Usar)
+
+**🧠 1. Regras do BrainCore (Gerenciamento de Cenas)**
+* **A Regra de Ouro:** O jogo DEVE ser iniciado (Play) sempre a partir da cena Mestra (`0_SCN_System`). Se ela for fechada ou não for a primeira, a arquitetura do jogo quebra.
+* **Troca de Fases:** Não utilize os atuadores padrão da engine para trocar de cena. Chame a função `load_level("nome_da_cena")` do BrainCore. Ele assumirá o controle criando a tela de loading e limpando a fase antiga da memória com segurança.
+* **Camadas Visuais:** A cena Mestra roda sempre no fundo (Background/Layer 0). Telas de Pause e Loading são sempre abertas como *Overlay* para cobrir as fases atuais.
+
+**💾 2. Regras do Save Manager (Persistência)**
+* **O que é salvo:** O sistema rastreia e salva automaticamente a Posição, Rotação e Propriedades de objetos Físicos (Dinâmicos/Character), *Empties* e *Group Instances*.
+* **O que é ignorado:** Propriedades de uso exclusivo da interface da Range Engine (que começam com `C_`) são ignoradas para economizar espaço no JSON.
+* **Restauração Dinâmica:** Ao dar Load, se houverem objetos extras na cena atual (que não existiam no save), eles são deletados. Se faltarem objetos, o sistema busca o original na layer inativa (oculta) e o spawna novamente na posição correta.
+
+**🎵 3. Regras do Music Manager (Áudio)**
+* **Uso de Apelidos (Aliases):** O sistema usa um dicionário interno (Playlist). Em vez de chamar `"track_forest.mp3"`, você dá o play chamando um apelido como `"RACE_1"`.
+* **Busca Inteligente:** Você não precisa passar o caminho completo. O sistema busca automaticamente o áudio nas pastas `//sounds/music/` ou `//sounds/`, testando extensões comuns (`.ogg`, `.mp3`, `.wav`) caso você tenha esquecido de informar.
+* **Fades Automáticos:** Nunca zere o volume bruscamente. Ao mandar tocar uma nova música, se já houver uma tocando, o gerenciador fará o *Fade Out* (redução suave) da atual e o *Fade In* da nova sozinho.
+
+---
+
+### 🛠️ Configuração e Instalação
+1. Clone o repositório ou baixe o arquivo ZIP.
+2. Abra o projeto através da **Range Engine**.
+3. Para testar o sistema, abra a cena `0_SCN_System` e inicie o jogo (P). O `BrainCore` fará a transição e a carga dos menus/fases automaticamente.
