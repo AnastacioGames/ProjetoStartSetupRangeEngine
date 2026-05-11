@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "c:\\Users\\f_bro\\.vscode\\extensions\\rangeengine.range-engine-api-0.1.2\\src\\stubs"
+    ]
+}

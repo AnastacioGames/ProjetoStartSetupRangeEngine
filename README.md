@@ -31,3 +31,4 @@ Um template base robusto para acelerar o desenvolvimento de jogos utilizando a *
 1. Clone o repositório ou baixe o arquivo ZIP.
 2. Abra o projeto através da **Range Engine**.
 3. Para testar o sistema, abra a cena `0_SCN_System` e inicie o jogo (P). O `BrainCore` fará a transição e a carga dos menus/fases automaticamente.
+
