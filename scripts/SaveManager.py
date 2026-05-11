@@ -26,11 +26,18 @@ class SaveManager(Range.types.KX_PythonComponent):
 		("Debug Mode", True),
 
 		("C_Header /Controles/VIEW3D", True),
-		("Save Key", "KKEY"),  # Tecla para salvar (ex: KKEY, SKEY, SPACEKEY)
-		("Load Key", "LKEY"),  # Tecla para carregar (ex: LKEY, RKEY)
+		("Save Key", "K"),  # Tecla para salvar (ex: K, S, SPACE)
+		("Load Key", "L"),  # Tecla para carregar (ex: L, R)
 		
 		("C_Header /Filtro/FILTER", True),
 		("Save Only With Props", False),  # Salva apenas objetos que possuam propriedades
+
+		("C_Header /Interface/SCENE", True),
+		("UI Scene", "0_SCN_Systen"),  # Cena onde os popups serão criados
+		("UI Spawner", "msg_status"),  # Objeto Empty que servirá de âncora
+		("Save Popup", "Msg_Save"),    # Nome do objeto visual de Save
+		("Load Popup", "Msg_Load"),    # Nome do objeto visual de Load
+		("Popup Lifetime", 60),        # Tempo de vida do popup em frames
 	])
 
 	@staticmethod
@@ -51,16 +58,18 @@ class SaveManager(Range.types.KX_PythonComponent):
 		self.debug = args["Debug Mode"]
 		self.save_only_with_props = args.get("Save Only With Props", False)
 
-		# Configurações internas de UI (sem expor no painel por enquanto)
-		self.ui_scene_name = "0_SCN_System"
-		self.ui_spawner = "msg_status"
-		self.save_popup = "Msg_Save"
-		self.load_popup = "Msg_Load"
-		self.popup_lifetime = 120
+		# Configurações de UI (agora expostas e controladas pelo painel)
+		self.ui_scene_name = args.get("UI Scene", "0_SCN_Systen")
+		self.ui_spawner = args.get("UI Spawner", "msg_status")
+		self.save_popup = args.get("Save Popup", "Msg_Save")
+		self.load_popup = args.get("Load Popup", "Msg_Load")
+		self.popup_lifetime = args.get("Popup Lifetime", 60)
 
-		# Busca o código da tecla na API da Range usando a string ("KKEY", "LKEY")
-		self.save_key = getattr(events, args.get("Save Key", "KKEY"), events.KKEY)
-		self.load_key = getattr(events, args.get("Load Key", "LKEY"), events.LKEY)
+		# Busca o código da tecla na API da Range usando a string limpa ("K", "L")
+		save_key_str = args.get("Save Key", "K").replace("KEY", "").upper() + "KEY"
+		load_key_str = args.get("Load Key", "L").replace("KEY", "").upper() + "KEY"
+		self.save_key = getattr(events, save_key_str, events.KKEY)
+		self.load_key = getattr(events, load_key_str, events.LKEY)
 
 		# Referência direta ao teclado
 		self.keyboard = Range.logic.keyboard
@@ -107,7 +116,7 @@ class SaveManager(Range.types.KX_PythonComponent):
 			
 		for scene in Range.logic.getSceneList():
 			# Ignora a cena de sistema
-			if scene.name == "0_SCN_System":
+			if scene.name == "0_SCN_Systen":
 				continue
 				
 			obj_dict = {}

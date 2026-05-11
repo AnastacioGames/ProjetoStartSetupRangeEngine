@@ -15,14 +15,18 @@ class BrainCore(Range.types.KX_PythonComponent):
     args = OrderedDict([
         ("C_Icons", "SEQUENCE"),  # Ícone sugerido para o Core
 
-        ("C_Header /Setup Inicial/SETTINGS", True),
+        ("C_Header /Geral/SETTINGS", True),
         ("Start Scene", "game_player"),  # Qual cena carregar ao abrir o jogo?
         ("Debug Mode", True),  # Mostrar prints no console?
+        ("Show Mouse (Game)", False), # O mouse fica visível durante o jogo?
 
-        ("C_Header /Transição/CAMERA_DATA", True),
-        ("Loading Scene", "1_SCN_Load"), # Nome da cena de Loading
+        ("C_Header /Loading/TIME", True),
+        ("Loading Scene", "000_SCN_Load"), # Nome da cena de Loading
         ("Loading Time", 0.5), # Tempo mínimo de tela de loading (segundos)
-        ("Pause Scene", "2_SCN_Pause"), # Nome da cena de Pause
+        
+        ("C_Header /Pause/PAUSE", True),
+        ("Allow Pause", True), # Permite pausar o jogo?
+        ("Pause Scene", "00_SCN_Pause"), # Nome da cena de Pause
         ("Pause Key", "ESCKEY"), # Tecla para pausar o jogo
     ])
 
@@ -44,8 +48,9 @@ class BrainCore(Range.types.KX_PythonComponent):
         # Inicializa variáveis internas
         self.active_scene_name = None
         
-        self.loading_scene_name = args.get("Loading Scene", "1_SCN_Load")
-        self.pause_scene_name = args.get("Pause Scene", "2_SCN_Pause")
+        self.loading_scene_name = args.get("Loading Scene", "000_SCN_Load")
+        self.allow_pause = args.get("Allow Pause", True)
+        self.pause_scene_name = args.get("Pause Scene", "00_SCN_Pause")
         self.is_paused = False
         self.loading_time = args.get("Loading Time", 0.5)
         self.is_loading = False
@@ -74,6 +79,10 @@ class BrainCore(Range.types.KX_PythonComponent):
         # --- Captura Argumentos ---
         self.start_scene_name = args["Start Scene"]
         self.debug = args["Debug Mode"]
+        self.default_mouse = args.get("Show Mouse (Game)", False)
+        
+        # Aplica a visibilidade inicial do mouse
+        Range.render.showMouse(self.default_mouse)
         
         # --- Controles ---
         self.pause_key = getattr(events, args.get("Pause Key", "ESCKEY"), events.ESCKEY)
@@ -129,7 +138,7 @@ class BrainCore(Range.types.KX_PythonComponent):
                     if self.debug: print(f"[BrainCore] Troca concluida para: {self._target_scene}")
 
         # Lógica de Pause (só funciona se não estiver no meio de um Loading)
-        elif not self.is_loading and self.active_scene_name:
+        elif not self.is_loading and self.active_scene_name and self.allow_pause:
             pause_input = self.keyboard.inputs[self.pause_key]
             if getattr(pause_input, "activated", False):
                 self.toggle_pause()
@@ -150,7 +159,7 @@ class BrainCore(Range.types.KX_PythonComponent):
         """
         Regra 1: Toda cena criada passa por aqui.
         Ao adicionar como is_overlay=False (Background/0), garantimos que
-        a cena Mestra (0_SCN_System) fique sempre na frente.
+        a cena Mestra (0_SCN_Systen) fique sempre na frente.
         """
         if not scene_name: return
         mode = 1 if is_overlay else 0
@@ -223,5 +232,5 @@ class BrainCore(Range.types.KX_PythonComponent):
             self.safe_end_scene(self.pause_scene_name)
             
             Range.logic.globalDict["PAUSED"] = False
-            Range.render.showMouse(False)
+            Range.render.showMouse(self.default_mouse)
             if self.debug: print("[BrainCore] Jogo Retomado.")
