@@ -27,6 +27,8 @@ Um template base robusto para acelerar o desenvolvimento de jogos utilizando a *
 * **Uso de Apelidos (Aliases):** O sistema usa um dicionário interno (Playlist). Em vez de chamar `"track_forest.mp3"`, você dá o play chamando um apelido como `"RACE_1"`.
 * **Busca Inteligente:** Você não precisa passar o caminho completo. O sistema busca automaticamente o áudio nas pastas `//sounds/music/` ou `//sounds/`, testando extensões comuns (`.ogg`, `.mp3`, `.wav`) caso você tenha esquecido de informar.
 * **Fades Automáticos:** Nunca zere o volume bruscamente. Ao mandar tocar uma nova música, se já houver uma tocando, o gerenciador fará o *Fade Out* (redução suave) da atual e o *Fade In* da nova sozinho.
+* 
+<img width="1024" height="1536" alt="image" src="https://github.com/user-attachments/assets/36ab866d-5ade-4d8b-aa53-02fd5dd670bc" />
 
 ---
 
