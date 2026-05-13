@@ -16,13 +16,14 @@ class BrainCore(Range.types.KX_PythonComponent):
         ("C_Icons", "SEQUENCE"),  # Ícone sugerido para o Core
 
         ("C_Header /Geral/SETTINGS", True),
-        ("Start Scene", "game_player"),  # Qual cena carregar ao abrir o jogo?
+        ("Start Scene", "1_SCN_Main_Menu"),  # Qual cena carregar ao abrir o jogo?
+        ("Menu Scenes", "1_SCN_Main_Menu"),  # Cenas de Menu (separadas por vírgula)
         ("Debug Mode", True),  # Mostrar prints no console?
         ("Show Mouse (Game)", False), # O mouse fica visível durante o jogo?
 
         ("C_Header /Loading/TIME", True),
         ("Loading Scene", "000_SCN_Load"), # Nome da cena de Loading
-        ("Loading Time", 0.5), # Tempo mínimo de tela de loading (segundos)
+        ("Loading Time", 1.1), # Tempo mínimo de tela de loading (segundos)
         
         ("C_Header /Pause/PAUSE", True),
         ("Allow Pause", True), # Permite pausar o jogo?
@@ -59,11 +60,10 @@ class BrainCore(Range.types.KX_PythonComponent):
         self._load_timer = 0.0
         self._load_frames = 0
         
-        # Garante estado limpo globalmente ao iniciar
+        # Status Global do Jogo (MENU, PLAYING, PAUSED, LOADING)
         Range.logic.globalDict["PAUSED"] = False
+        Range.logic.globalDict["GAME_STATE"] = "LOADING"
         
-        print("[BrainCore] Sistema Desperto. Aguardando Start...")
-
     def start(self, args):
         # --- PROTEÇÃO DA ARQUITETURA (BASE SCENE) ---
         # Na Range/UPBGE, se a cena Base for fechada, TODAS as outras morrem junto!
@@ -78,6 +78,7 @@ class BrainCore(Range.types.KX_PythonComponent):
             
         # --- Captura Argumentos ---
         self.start_scene_name = args["Start Scene"]
+        self.menu_scenes = [s.strip() for s in args.get("Menu Scenes", "1_SCN_Main_Menu").split(",")]
         self.debug = args["Debug Mode"]
         self.default_mouse = args.get("Show Mouse (Game)", False)
         
@@ -87,9 +88,6 @@ class BrainCore(Range.types.KX_PythonComponent):
         # --- Controles ---
         self.pause_key = getattr(events, args.get("Pause Key", "ESCKEY"), events.ESCKEY)
         self.keyboard = Range.logic.keyboard
-
-        if self.debug:
-            print("[BrainCore] Iniciando servicos centrais...")
 
         # --- EXEMPLO DE COMO PUXAR OS SUB-SISTEMAS COM SEGURANÇA ---
         try:
@@ -103,6 +101,25 @@ class BrainCore(Range.types.KX_PythonComponent):
         self.load_level(self.start_scene_name)
 
     def update(self):
+        # --- CAIXA DE CORREIO (Interface e Botoes) ---
+        # Permite comandos diretos via globalDict
+        cmd_load = Range.logic.globalDict.get("LoadScene")
+        if cmd_load:
+            self.load_level(cmd_load)
+            del Range.logic.globalDict["LoadScene"]
+
+        # Permite comandos via Logic Bricks (Message Actuator)
+        for sensor in self.object.sensors:
+            if hasattr(sensor, "subjects") and sensor.positive:
+                for subject, body in zip(sensor.subjects, sensor.bodies):
+                    if subject == "LoadScene" and body:
+                        self.load_level(body)
+                    elif subject == "TogglePause":
+                        if not self.is_loading and self.active_scene_name and self.allow_pause and Range.logic.globalDict.get("GAME_STATE") in ["PLAYING", "PAUSED"]:
+                            self.toggle_pause()
+                    elif subject == "QuitGame":
+                        Range.logic.endGame()
+
         # Máquina de Estados para Transição de Cenas com Tela de Loading
         if self.is_loading:
             if self._load_state == 1:
@@ -135,10 +152,17 @@ class BrainCore(Range.types.KX_PythonComponent):
                     self.active_scene_name = self._target_scene
                     self.is_loading = False
                     self._load_state = 0
-                    if self.debug: print(f"[BrainCore] Troca concluida para: {self._target_scene}")
+                    
+                    # Atualiza o Estado Global baseado no tipo de cena
+                    if self.active_scene_name in self.menu_scenes:
+                        Range.logic.globalDict["GAME_STATE"] = "MENU"
+                        Range.render.showMouse(True)
+                    else:
+                        Range.logic.globalDict["GAME_STATE"] = "PLAYING"
+                        Range.render.showMouse(self.default_mouse)
 
         # Lógica de Pause (só funciona se não estiver no meio de um Loading)
-        elif not self.is_loading and self.active_scene_name and self.allow_pause:
+        elif not self.is_loading and self.active_scene_name and self.allow_pause and Range.logic.globalDict.get("GAME_STATE") in ["PLAYING", "PAUSED"]:
             pause_input = self.keyboard.inputs[self.pause_key]
             if getattr(pause_input, "activated", False):
                 self.toggle_pause()
@@ -153,7 +177,6 @@ class BrainCore(Range.types.KX_PythonComponent):
         for scn in Range.logic.getSceneList():
             if scn.name not in [system_name, self.loading_scene_name]:
                 scn.end()
-                if self.debug: print(f"[BrainCore] Cena antiga '{scn.name}' varrida da memoria.")
 
     def safe_add_scene(self, scene_name, is_overlay=False):
         """
@@ -164,9 +187,6 @@ class BrainCore(Range.types.KX_PythonComponent):
         if not scene_name: return
         mode = 1 if is_overlay else 0
         Range.logic.addScene(scene_name, mode)
-        if self.debug: 
-            camada = "Overlay (Topo Absoluto)" if is_overlay else "Background (Abaixo da System)"
-            print(f"[BrainCore] Cena adicionada: '{scene_name}' -> {camada}")
 
     def safe_end_scene(self, scene_name):
         """
@@ -197,12 +217,10 @@ class BrainCore(Range.types.KX_PythonComponent):
         if self.is_paused:
             self.toggle_pause()
 
-        if self.debug:
-            print(f"[BrainCore] Solicitando troca para: {scene_name}")
-
         self.is_loading = True
         self._target_scene = scene_name
         self._load_state = 1
+        Range.logic.globalDict["GAME_STATE"] = "LOADING"
 
     def toggle_pause(self):
         """Pausa ou despausa o jogo, gerenciando a cena de pause"""
@@ -223,8 +241,8 @@ class BrainCore(Range.types.KX_PythonComponent):
             self.safe_add_scene(self.pause_scene_name, is_overlay=True)
             
             Range.logic.globalDict["PAUSED"] = True
+            Range.logic.globalDict["GAME_STATE"] = "PAUSED"
             Range.render.showMouse(True)
-            if self.debug: print(f"[BrainCore] Jogo Pausado. Cena '{self.pause_scene_name}' carregada.")
         else:
             if active_scene: active_scene.resume()
             
@@ -232,5 +250,5 @@ class BrainCore(Range.types.KX_PythonComponent):
             self.safe_end_scene(self.pause_scene_name)
             
             Range.logic.globalDict["PAUSED"] = False
+            Range.logic.globalDict["GAME_STATE"] = "PLAYING"
             Range.render.showMouse(self.default_mouse)
-            if self.debug: print("[BrainCore] Jogo Retomado.")

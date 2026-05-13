@@ -14,7 +14,7 @@ Um template base robusto para acelerar o desenvolvimento de jogos utilizando a *
 * **A Regra de Ouro:** O jogo DEVE ser iniciado (Play) sempre a partir da cena Mestra (`0_SCN_Systen`). Se ela for fechada ou não for a primeira, a arquitetura do jogo quebra.
 * **Troca de Fases:** Não utilize os atuadores padrão da engine para trocar de cena. Chame a função `load_level("nome_da_cena")` do BrainCore. Ele assumirá o controle criando a tela de loading e limpando a fase antiga da memória com segurança.
 * **Ordem de Renderização (O "Sanduíche" de Cenas):** A engine desenha as telas em 3 camadas de profundidade (de trás para frente):
-  1. **Lá no Fundo (Background):** A fase do jogo (ex: `game_player`).
+  1. **Lá no Fundo (Background):** A fase do jogo (ex: `Fase_1`).
   2. **No Meio (Base):** A cena Mestra (`0_SCN_Systen`). Fica na frente da fase, permitindo que HUDs e notificações globais apareçam sobre o jogo.
   3. **Na Frente de Tudo (Overlay):** Telas de Pause e Loading. Cobrem absolutamente tudo, escondendo a fase e a interface da cena Mestra.
 

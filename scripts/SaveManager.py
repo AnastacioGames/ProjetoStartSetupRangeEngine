@@ -22,6 +22,7 @@ class SaveManager(Range.types.KX_PythonComponent):
 
 		("C_Header /Arquivo/SETTINGS", True),
 		("File Name", "savefile.json"),  # Nome do arquivo no disco
+		("Profile File", "profile.json"), # Arquivo para salvar progresso global
 		("Auto Load", False),  # Carregar assim que iniciar?
 		("Debug Mode", True),
 
@@ -52,9 +53,11 @@ class SaveManager(Range.types.KX_PythonComponent):
 
 		# Inicializa o container de dados vazio
 		self.data = {}
+		self.profile_data = {}
 
 		# Variáveis de controle
 		self.filename = args["File Name"]
+		self.profile_filename = args.get("Profile File", "profile.json")
 		self.debug = args["Debug Mode"]
 		self.save_only_with_props = args.get("Save Only With Props", False)
 
@@ -74,15 +77,27 @@ class SaveManager(Range.types.KX_PythonComponent):
 		# Referência direta ao teclado
 		self.keyboard = Range.logic.keyboard
 
-		if self.debug:
-			print("[SaveManager] Componente Desperto.")
-
 	def start(self, args):
 		# Se estiver marcado para carregar automático
 		if args["Auto Load"]:
 			self.load()
+			
+		# Carrega o perfil global automaticamente
+		self.load_profile()
 
 	def update(self):
+		# --- CAIXA DE CORREIO (Ouvinte Global para Progresso) ---
+		cmd_complete = Range.logic.globalDict.get("CompleteLevel")
+		if cmd_complete:
+			self.mark_level_completed(cmd_complete)
+			del Range.logic.globalDict["CompleteLevel"]
+			
+		for sensor in self.object.sensors:
+			if hasattr(sensor, "subjects") and sensor.positive:
+				for subject, body in zip(sensor.subjects, sensor.bodies):
+					if subject == "CompleteLevel" and body:
+						self.mark_level_completed(body)
+
 		if getattr(self, "_pending_load_data", False):
 			core = self.object.get("core_instance")
 			if core and not core.is_loading and core.active_scene_name == self.data.get("saved_level"):
@@ -101,19 +116,18 @@ class SaveManager(Range.types.KX_PythonComponent):
 
 		# '.activated' verifica se a tecla acabou de ser apertada (Tap/Click)
 		if getattr(save_input, "activated", False):
-			self.save()
+			if Range.logic.globalDict.get("GAME_STATE") in ["PLAYING", "PAUSED"]:
+				self.save()
 			
 		if getattr(load_input, "activated", False):
-			self.load()
+			if Range.logic.globalDict.get("GAME_STATE") in ["PLAYING", "PAUSED"]:
+				self.load()
 
 	# --- MÉTODOS DE SERVIÇO (CHAMADOS PELO BRAINCORE) ---
 
 	def _gather_scene_data(self):
 		"""Coleta posição, rotação e propriedades dos objetos permitidos na cena"""
 		scenes_data = {}
-		if self.debug:
-			print("[SaveManager] Iniciando varredura de cenas...")
-			
 		for scene in Range.logic.getSceneList():
 			# Ignora a cena de sistema
 			if scene.name == "0_SCN_Systen":
@@ -159,14 +173,9 @@ class SaveManager(Range.types.KX_PythonComponent):
 					"rotation": rot,
 					"properties": props
 				})
-				if self.debug:
-					print(f"[SaveManager] Objeto validado e salvo: '{obj.name}' (Cena: {scene.name})")
 			
 			if obj_dict:
 				scenes_data[scene.name] = obj_dict
-			elif self.debug:
-				print(f"[SaveManager] Nenhum objeto cumpriu as regras na cena: {scene.name}")
-				
 		return scenes_data
 
 	def _apply_scene_data(self):
@@ -199,7 +208,6 @@ class SaveManager(Range.types.KX_PythonComponent):
 							if obj_matrix:
 								anchor = scene.active_camera if scene.active_camera else scene.objects[0]
 								obj = scene.addObject(obj_matrix, anchor)
-								if self.debug: print(f"[SaveManager] Multi-Objeto Spawneado: '{obj_name}'")
 							else:
 								obj = None
 								
@@ -223,26 +231,33 @@ class SaveManager(Range.types.KX_PythonComponent):
 
 	def _spawn_popup(self, popup_name):
 		"""Instancia um objeto de UI na cena de sistema"""
+		spawner = None
+		spawner_scene = None
 		for scene in Range.logic.getSceneList():
 			if scene.name == self.ui_scene_name:
 				spawner = scene.objects.get(self.ui_spawner)
-				
-				# Busca o objeto original diretamente na layer inativa desta cena
-				# Isso evita o bug do motor tentar procurar na cena do Player
-				obj_matrix = scene.objectsInactive.get(popup_name)
-				
-				if spawner and obj_matrix:
-					# Cria o objeto já programado para se autodestruir após 'popup_lifetime' frames
-					scene.addObject(obj_matrix, spawner, self.popup_lifetime)
+				spawner_scene = scene
 				break
+				
+		obj_matrix = None
+		for scene in Range.logic.getSceneList():
+			obj_matrix = scene.objectsInactive.get(popup_name)
+			if obj_matrix:
+				break
+				
+		if spawner_scene and spawner and obj_matrix:
+			spawner_scene.addObject(obj_matrix, spawner, self.popup_lifetime)
 
 	def save(self):
 		"""Salva o dicionário self.data no arquivo JSON"""
+		core = self.object.get("core_instance")
+		if core and core.active_scene_name in core.menu_scenes:
+			return  # Nunca salva sobre um menu!
+
 		# 1. Varredura automática das Cenas e Objetos
 		self.data["scenes"] = self._gather_scene_data()
 		
 		# 2. Salva qual é a fase atual no BrainCore
-		core = self.object.get("core_instance")
 		
 		# Abre a tela de Pause automaticamente ao apertar Salvar
 		if core and not core.is_paused:
@@ -253,14 +268,15 @@ class SaveManager(Range.types.KX_PythonComponent):
 
 		path = Range.logic.expandPath("//" + self.filename)
 
+		# Garante que o diretório exista antes de salvar (previne crash se tiver subpastas)
+		save_dir = os.path.dirname(path)
+		if save_dir and not os.path.exists(save_dir):
+			os.makedirs(save_dir)
+
 		try:
 			with open(path, 'w') as outfile:
 				json.dump(self.data, outfile, indent=4)
 
-			if self.debug:
-				print(f"[SaveManager] Jogo salvo com sucesso em: {path}")
-				print(f"[SaveManager] Dados: {self.data}")
-				
 			self._spawn_popup(self.save_popup)
 
 		except Exception as e:
@@ -271,7 +287,6 @@ class SaveManager(Range.types.KX_PythonComponent):
 		path = Range.logic.expandPath("//" + self.filename)
 
 		if not os.path.exists(path):
-			if self.debug: print("[SaveManager] Arquivo não existe. Criando novo perfil.")
 			# Define valores padrão (vazio) caso não exista save
 			self.data = {}
 			return
@@ -280,15 +295,11 @@ class SaveManager(Range.types.KX_PythonComponent):
 			with open(path, 'r') as infile:
 				self.data = json.load(infile)
 				
-			if self.debug:
-				print(f"[SaveManager] Dados carregados: {self.data}")
-
 			# Interação com o Core: Força o reload da fase (mesmo se for a atual) antes de injetar os dados
 			saved_level = self.data.get("saved_level", "")
 			core = self.object.get("core_instance")
 			
 			if core and saved_level:
-				if self.debug: print(f"[SaveManager] Solicitando mudanca/reload de cena para: {saved_level}")
 				core.load_level(saved_level)
 				self._pending_load_data = True
 			else:
@@ -302,6 +313,38 @@ class SaveManager(Range.types.KX_PythonComponent):
 		except Exception as e:
 			print(f"[SaveManager] ARQUIVO CORROMPIDO: {e}")
 			self.data = {}  # Zera para evitar crash
+
+	# --- SISTEMA DE PERFIL (PROGRESSO GLOBAL) ---
+	def save_profile(self):
+		"""Salva dados que independem da fase (ex: fases concluidas)"""
+		path = Range.logic.expandPath("//" + self.profile_filename)
+		save_dir = os.path.dirname(path)
+		if save_dir and not os.path.exists(save_dir):
+			os.makedirs(save_dir)
+		try:
+			with open(path, 'w') as outfile:
+				json.dump(self.profile_data, outfile, indent=4)
+		except Exception as e:
+			pass
+			
+	def load_profile(self):
+		"""Carrega dados globais do jogador"""
+		path = Range.logic.expandPath("//" + self.profile_filename)
+		if not os.path.exists(path):
+			self.profile_data = {"completed_levels": []}
+			return
+		try:
+			with open(path, 'r') as infile:
+				self.profile_data = json.load(infile)
+		except:
+			self.profile_data = {"completed_levels": []}
+			
+	def mark_level_completed(self, level_name):
+		if "completed_levels" not in self.profile_data:
+			self.profile_data["completed_levels"] = []
+		if level_name not in self.profile_data["completed_levels"]:
+			self.profile_data["completed_levels"].append(level_name)
+			self.save_profile()
 
 	# --- API PARA O JOGO ---
 

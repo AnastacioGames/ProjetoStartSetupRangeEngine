@@ -1,6 +1,6 @@
 {
     "scenes": {
-        "game_player": {
+        "Fase_1": {
             "Empty.001": [
                 {
                     "position": [
@@ -211,5 +211,5 @@
             ]
         }
     },
-    "saved_level": "game_player"
+    "saved_level": "Fase_1"
 }
