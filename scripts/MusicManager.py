@@ -27,7 +27,7 @@ class MusicManager(Range.types.KX_PythonComponent):
 		("UI Scene", "0_SCN_Systen"),
 		("UI Spawner", "msg_status"),
 		("Music Popup", "Msg_Music"),  # Nome do objeto de UI que vai aparecer
-		("Popup Lifetime", 90),        # Tempo que ele fica na tela
+		("Popup Lifetime", 200),        # Tempo que ele fica na tela
 	])
 
 	@staticmethod
@@ -46,12 +46,12 @@ class MusicManager(Range.types.KX_PythonComponent):
 		self.ui_scene_name = args.get("UI Scene", "0_SCN_Systen")
 		self.ui_spawner = args.get("UI Spawner", "msg_status")
 		self.music_popup = args.get("Music Popup", "Msg_Music")
-		self.popup_lifetime = args.get("Popup Lifetime", 90)
+		self.popup_lifetime = args.get("Popup Lifetime", 200)
 
 		# Playlists (Apelidos organizados)
 		self.music_playlist = {
 			"MENU": "musica_menu.ogg",
-			"musica_1": "Tobu - Candyland.mp3",
+			"music_1": "We Ride - Reed Mathis.ogg",
 			"VICTORY": "win_song.wav",
 		}
 		

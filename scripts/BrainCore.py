@@ -97,8 +97,17 @@ class BrainCore(Range.types.KX_PythonComponent):
             pass
 
         # --- Carrega a Primeira Cena (Menu) ---
-        # Chamamos nossa função personalizada de troca de cena
-        self.load_level(self.start_scene_name)
+        # Adiciona diretamente a cena inicial para não exibir a tela de Loading na abertura
+        self.safe_add_scene(self.start_scene_name, is_overlay=False)
+        self.active_scene_name = self.start_scene_name
+        
+        # Atualiza o Estado Global baseado no tipo de cena
+        if self.active_scene_name in self.menu_scenes:
+            Range.logic.globalDict["GAME_STATE"] = "MENU"
+            Range.render.showMouse(True)
+        else:
+            Range.logic.globalDict["GAME_STATE"] = "PLAYING"
+            Range.render.showMouse(self.default_mouse)
 
     def update(self):
         # --- CAIXA DE CORREIO (Interface e Botoes) ---
