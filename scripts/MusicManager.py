@@ -119,8 +119,12 @@ class MusicManager(Range.types.KX_PythonComponent):
 			print(f"[Music] Erro: {name} nao encontrado.")
 			return
 
-		# Carrega SEM cache (Stream do disco)
-		factory = aud.Sound(path)
+		try:
+			# Carrega SEM cache (Stream do disco)
+			factory = aud.Sound(path)
+		except Exception as e:
+			print(f"[MusicManager] Erro ao carregar/decodificar musica '{path}': {e}")
+			return
 
 		time = fade_time if fade_time is not None else self.default_fade
 
@@ -141,17 +145,21 @@ class MusicManager(Range.types.KX_PythonComponent):
 			print(f"[MusicManager] SFX AVISO: Efeito '{name}' nao encontrado.")
 			return None
 
-		factory = aud.Sound(path)
-		sfx_handle = self.device.play(factory)
-		
-		if sfx_handle:
-			sfx_handle.loop_count = 0
-			master = logic.globalDict.get("Config", {}).get("MasterVolume", 1.0)
-			final_vol = vol if vol is not None else self.sfx_volume
-			sfx_handle.volume = final_vol * master
-			sfx_handle.pitch = pitch
+		try:
+			factory = aud.Sound(path)
+			sfx_handle = self.device.play(factory)
 			
-		return sfx_handle
+			if sfx_handle:
+				sfx_handle.loop_count = 0
+				master = logic.globalDict.get("Config", {}).get("MasterVolume", 1.0)
+				final_vol = vol if vol is not None else self.sfx_volume
+				sfx_handle.volume = final_vol * master
+				sfx_handle.pitch = pitch
+				
+			return sfx_handle
+		except Exception as e:
+			print(f"[MusicManager] Erro ao carregar/tocar SFX '{path}': {e}")
+			return None
 
 	def _spawn_popup(self, track_name):
 		"""Instancia o objeto de UI na cena Mestra e atualiza seu texto"""

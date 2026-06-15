@@ -16,18 +16,18 @@ class BrainCore(Range.types.KX_PythonComponent):
         ("C_Icons", "SEQUENCE"),  # Ícone sugerido para o Core
 
         ("C_Header /Geral/SETTINGS", True),
-        ("Start Scene", "1_SCN_Main_Menu"),  # Qual cena carregar ao abrir o jogo?
-        ("Menu Scenes", "1_SCN_Main_Menu"),  # Cenas de Menu (separadas por vírgula)
+        ("Start Scene", "SCN_Main_Menu"),  # Qual cena carregar ao abrir o jogo?
+        ("Menu Scenes", "SCN_Main_Menu"),  # Cenas de Menu (separadas por vírgula)
         ("Debug Mode", True),  # Mostrar prints no console?
         ("Show Mouse (Game)", False), # O mouse fica visível durante o jogo?
 
         ("C_Header /Loading/TIME", True),
-        ("Loading Scene", "000_SCN_Load"), # Nome da cena de Loading
+        ("Loading Scene", "SCN_Load"), # Nome da cena de Loading
         ("Loading Time", 1.1), # Tempo mínimo de tela de loading (segundos)
         
         ("C_Header /Pause/PAUSE", True),
         ("Allow Pause", True), # Permite pausar o jogo?
-        ("Pause Scene", "00_SCN_Pause"), # Nome da cena de Pause
+        ("Pause Scene", "SCN_Pause"), # Nome da cena de Pause
         ("Pause Key", "ESCKEY"), # Tecla para pausar o jogo
     ])
 
@@ -49,9 +49,9 @@ class BrainCore(Range.types.KX_PythonComponent):
         # Inicializa variáveis internas
         self.active_scene_name = None
         
-        self.loading_scene_name = args.get("Loading Scene", "000_SCN_Load")
+        self.loading_scene_name = args.get("Loading Scene", "SCN_Load")
         self.allow_pause = args.get("Allow Pause", True)
-        self.pause_scene_name = args.get("Pause Scene", "00_SCN_Pause")
+        self.pause_scene_name = args.get("Pause Scene", "SCN_Pause")
         self.is_paused = False
         self.loading_time = args.get("Loading Time", 0.5)
         self.is_loading = False
@@ -78,7 +78,7 @@ class BrainCore(Range.types.KX_PythonComponent):
             
         # --- Captura Argumentos ---
         self.start_scene_name = args["Start Scene"]
-        self.menu_scenes = [s.strip() for s in args.get("Menu Scenes", "1_SCN_Main_Menu").split(",")]
+        self.menu_scenes = [s.strip() for s in args.get("Menu Scenes", "SCN_Main_Menu").split(",")]
         self.debug = args["Debug Mode"]
         self.default_mouse = args.get("Show Mouse (Game)", False)
         
@@ -117,12 +117,19 @@ class BrainCore(Range.types.KX_PythonComponent):
             self.load_level(cmd_load)
             del Range.logic.globalDict["LoadScene"]
 
+        cmd_load_direct = Range.logic.globalDict.get("LoadSceneDirect")
+        if cmd_load_direct:
+            self.load_level(cmd_load_direct, show_loading=False)
+            del Range.logic.globalDict["LoadSceneDirect"]
+
         # Permite comandos via Logic Bricks (Message Actuator)
         for sensor in self.object.sensors:
             if hasattr(sensor, "subjects") and sensor.positive:
                 for subject, body in zip(sensor.subjects, sensor.bodies):
                     if subject == "LoadScene" and body:
                         self.load_level(body)
+                    elif subject == "LoadSceneDirect" and body:
+                        self.load_level(body, show_loading=False)
                     elif subject == "TogglePause":
                         if not self.is_loading and self.active_scene_name and self.allow_pause and Range.logic.globalDict.get("GAME_STATE") in ["PLAYING", "PAUSED"]:
                             self.toggle_pause()
@@ -213,7 +220,7 @@ class BrainCore(Range.types.KX_PythonComponent):
                 scn.end()
                 break
 
-    def load_level(self, scene_name):
+    def load_level(self, scene_name, show_loading=True):
         """Inicia a transição segura de cenas"""
         if self.is_loading: return
         
@@ -226,25 +233,36 @@ class BrainCore(Range.types.KX_PythonComponent):
         if self.is_paused:
             self.toggle_pause()
 
-        self.is_loading = True
         self._target_scene = scene_name
-        self._load_state = 1
-        Range.logic.globalDict["GAME_STATE"] = "LOADING"
+        
+        if show_loading:
+            self.is_loading = True
+            self._load_state = 1
+            Range.logic.globalDict["GAME_STATE"] = "LOADING"
+        else:
+            # Carregamento Direto (Ideal para menus rápidos)
+            self._nuke_old_scenes()
+            self.safe_add_scene(self._target_scene, is_overlay=False)
+            self.active_scene_name = self._target_scene
+            
+            if self.active_scene_name in self.menu_scenes:
+                Range.logic.globalDict["GAME_STATE"] = "MENU"
+                Range.render.showMouse(True)
+            else:
+                Range.logic.globalDict["GAME_STATE"] = "PLAYING"
+                Range.render.showMouse(self.default_mouse)
 
     def toggle_pause(self):
         """Pausa ou despausa o jogo, gerenciando a cena de pause"""
         self.is_paused = not self.is_paused
         
-        active_scene = None
         system_scene_name = self.object.scene.name
         
-        # Busca as instâncias das cenas ativas
-        for scn in Range.logic.getSceneList():
-            # Trava: Só suspende a cena atual se não for a cena do sistema
-            if scn.name == self.active_scene_name and scn.name != system_scene_name: active_scene = scn
-
         if self.is_paused:
-            if active_scene: active_scene.suspend()
+            # Suspende TODAS as cenas ativas (incluindo possíveis HUDs extras), exceto a do Sistema
+            for scn in Range.logic.getSceneList():
+                if scn.name not in [system_scene_name, self.loading_scene_name, self.pause_scene_name]:
+                    scn.suspend()
             
             # Adiciona a cena de Pause como Overlay (Cobre o jogo e a UI do Sistema)
             self.safe_add_scene(self.pause_scene_name, is_overlay=True)
@@ -253,7 +271,13 @@ class BrainCore(Range.types.KX_PythonComponent):
             Range.logic.globalDict["GAME_STATE"] = "PAUSED"
             Range.render.showMouse(True)
         else:
-            if active_scene: active_scene.resume()
+            # Retoma TODAS as cenas que foram suspensas
+            for scn in Range.logic.getSceneList():
+                if scn.name not in [system_scene_name, self.loading_scene_name, self.pause_scene_name]:
+                    scn.resume()
+                    
+            # Garante que a velocidade do jogo seja normalizada
+            Range.logic.setTimeScale(1.0)
             
             # Remove a cena de Pause seguindo as regras
             self.safe_end_scene(self.pause_scene_name)
