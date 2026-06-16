@@ -198,7 +198,7 @@ class BrainCore(Range.types.KX_PythonComponent):
         """
         Regra 1: Toda cena criada passa por aqui.
         Ao adicionar como is_overlay=False (Background/0), garantimos que
-        a cena Mestra (0_SCN_Systen) fique sempre na frente.
+        a cena Mestra (0_SCN_System) fique sempre na frente.
         """
         if not scene_name: return
         mode = 1 if is_overlay else 0

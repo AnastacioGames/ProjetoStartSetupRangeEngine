@@ -24,7 +24,7 @@ class MusicManager(Range.types.KX_PythonComponent):
 		("Fade Time", 2.0),
 		
 		("C_Header /Interface/UI", True),
-		("UI Scene", "0_SCN_Systen"),
+		("UI Scene", "0_SCN_System"),
 		("UI Spawner", "msg_status"),
 		("Music Popup", "Msg_Music"),  # Nome do objeto de UI que vai aparecer
 		("Popup Lifetime", 200),        # Tempo que ele fica na tela
@@ -43,7 +43,7 @@ class MusicManager(Range.types.KX_PythonComponent):
 		self.default_fade = args.get("Fade Time", 2.0)
 		
 		# Setup da UI
-		self.ui_scene_name = args.get("UI Scene", "0_SCN_Systen")
+		self.ui_scene_name = args.get("UI Scene", "0_SCN_System")
 		self.ui_spawner = args.get("UI Spawner", "msg_status")
 		self.music_popup = args.get("Music Popup", "Msg_Music")
 		self.popup_lifetime = args.get("Popup Lifetime", 200)

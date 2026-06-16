@@ -34,7 +34,7 @@ class SaveManager(Range.types.KX_PythonComponent):
 		("Save Only With Props", False),  # Salva apenas objetos que possuam propriedades
 
 		("C_Header /Interface/SCENE", True),
-		("UI Scene", "0_SCN_Systen"),  # Cena onde os popups serão criados
+		("UI Scene", "0_SCN_System"),  # Cena onde os popups serão criados
 		("UI Spawner", "msg_status"),  # Objeto Empty que servirá de âncora
 		("Save Popup", "Msg_Save"),    # Nome do objeto visual de Save
 		("Load Popup", "Msg_Load"),    # Nome do objeto visual de Load
@@ -62,7 +62,7 @@ class SaveManager(Range.types.KX_PythonComponent):
 		self.save_only_with_props = args.get("Save Only With Props", False)
 
 		# Configurações de UI (agora expostas e controladas pelo painel)
-		self.ui_scene_name = args.get("UI Scene", "0_SCN_Systen")
+		self.ui_scene_name = args.get("UI Scene", "0_SCN_System")
 		self.ui_spawner = args.get("UI Spawner", "msg_status")
 		self.save_popup = args.get("Save Popup", "Msg_Save")
 		self.load_popup = args.get("Load Popup", "Msg_Load")
@@ -130,7 +130,7 @@ class SaveManager(Range.types.KX_PythonComponent):
 		scenes_data = {}
 		for scene in Range.logic.getSceneList():
 			# Ignora a cena de sistema
-			if scene.name == "0_SCN_Systen":
+			if scene.name == "0_SCN_System":
 				continue
 				
 			obj_dict = {}
