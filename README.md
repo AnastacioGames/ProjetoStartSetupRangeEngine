@@ -12,9 +12,14 @@ Um template base robusto para acelerar o desenvolvimento de jogos utilizando a *
 
 **🧠 1. Regras do BrainCore (Gerenciamento de Cenas)**
 * **A Regra de Ouro:** O jogo DEVE ser iniciado (Play) sempre a partir da cena Mestra (`0_SCN_System`). Se ela for fechada ou não for a primeira, a arquitetura do jogo quebra.
+<img width="342" height="262" alt="image" src="https://github.com/user-attachments/assets/511a208b-e7e8-4003-9a5b-d27e7bdcdd89" />
+<img width="726" height="260" alt="image" src="https://github.com/user-attachments/assets/6ab71b12-9a24-4cfd-b8ae-fef9ed9cb14b" />
+<img width="1108" height="281" alt="image" src="https://github.com/user-attachments/assets/1139e66b-cd03-4858-8f2d-93be79b8083a" />
 * **Troca de Fases:** Não utilize os atuadores padrão da engine para trocar de cena.
   * **Com Loading:** Envie uma Mensagem (`Message Actuator`) com o Assunto (Subject) `"LoadScene"` e o nome da fase no Corpo (Body). Ou use via Python: `Range.logic.globalDict["LoadScene"] = "nome_da_fase"`.
+  * <img width="1097" height="243" alt="image" src="https://github.com/user-attachments/assets/b06d94bd-8c44-42f0-973b-7187130236dc" />
   * **Sem Loading (Direto):** Envie `"LoadSceneDirect"` para trocas instantâneas (ideal para transição rápida entre menus).
+  * <img width="1102" height="257" alt="image" src="https://github.com/user-attachments/assets/926e5ddb-c9ea-48d6-8b83-78ba1ca262e1" />
 * **Pausa Global Inteligente:** Ao enviar a mensagem `"TogglePause"`, o BrainCore rastreia e congela **todas** as cenas ativas do jogo (fases, minimapas, HUDs extras), garantindo que nada rode no fundo. Ao despausar, a velocidade (`TimeScale`) é normalizada.
 * **Ordem de Renderização (O "Sanduíche" de Cenas):** A engine desenha as telas em 3 camadas de profundidade (de trás para frente):
   1. **Lá no Fundo (Background):** A fase do jogo (ex: `Fase_1`).
